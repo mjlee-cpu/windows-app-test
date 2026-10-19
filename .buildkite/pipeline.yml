@@ -1,0 +1,44 @@
+# .buildkite/pipeline.yml
+# Language-agnostic CI/CD example for a Windows self-hosted agent (default shell: cmd).
+agents:
+  queue: "windows"
+
+env:
+  APP_NAME: "demo"
+
+steps:
+  - label: ":hammer: Build"
+    key: "build"
+    commands:
+      - 'echo Building %APP_NAME% - build #%BUILDKITE_BUILD_NUMBER% on %BUILDKITE_AGENT_NAME%'
+      - 'mkdir dist'
+      - 'echo version=1.0.%BUILDKITE_BUILD_NUMBER%> dist\version.txt'
+      - 'git rev-parse --short HEAD > dist\commit.txt'
+      - 'buildkite-agent meta-data set "app-version" "1.0.%BUILDKITE_BUILD_NUMBER%"'
+    artifact_paths: "dist/**/*"
+
+  - wait
+
+  - group: ":test_tube: Tests"
+    steps:
+      - label: "Unit test"
+        commands:
+          - 'buildkite-agent artifact download "dist/*" .'
+          - 'type dist\version.txt'
+          - 'echo unit tests passed'
+      - label: "Integration test"
+        commands:
+          - 'buildkite-agent artifact download "dist/*" .'
+          - 'type dist\commit.txt'
+          - 'echo integration tests passed'
+
+  - wait
+
+  - block: ":rocket: Deploy to staging?"
+    key: "approve-deploy"
+    prompt: "Approve to run the deploy step"
+
+  - label: ":rocket: Deploy (simulated)"
+    commands:
+      - 'buildkite-agent meta-data get "app-version"'
+      - 'echo Deploying to staging (simulated)'
