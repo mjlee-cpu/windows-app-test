@@ -1,5 +1,4 @@
-# .buildkite/pipeline.yml
-# Language-agnostic CI/CD example for a Windows self-hosted agent (default shell: cmd).
+# .buildkite/pipeline.yml (advanced example)
 agents:
   queue: "windows"
 
@@ -9,36 +8,61 @@ env:
 steps:
   - label: ":hammer: Build"
     key: "build"
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        - exit_status: -1
+          limit: 2
     commands:
-      - 'echo Building %APP_NAME% - build #%BUILDKITE_BUILD_NUMBER% on %BUILDKITE_AGENT_NAME%'
       - 'mkdir dist'
       - 'echo version=1.0.%BUILDKITE_BUILD_NUMBER%> dist\version.txt'
-      - 'git rev-parse --short HEAD > dist\commit.txt'
       - 'buildkite-agent meta-data set "app-version" "1.0.%BUILDKITE_BUILD_NUMBER%"'
     artifact_paths: "dist/**/*"
 
-  - wait
-
-  - group: ":test_tube: Tests"
-    steps:
-      - label: "Unit test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\version.txt'
-          - 'echo unit tests passed'
-      - label: "Integration test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\commit.txt'
-          - 'echo integration tests passed'
-
-  - wait
-
-  - block: ":rocket: Deploy to staging?"
-    key: "approve-deploy"
-    prompt: "Approve to run the deploy step"
-
-  - label: ":rocket: Deploy (simulated)"
+  - label: ":mag: Lint"
+    key: "lint"
+    soft_fail: true
     commands:
-      - 'buildkite-agent meta-data get "app-version"'
-      - 'echo Deploying to staging (simulated)'
+      - 'echo lint warnings found'
+      - 'exit /b 1'
+
+  - label: ":test_tube: Test"
+    key: "test"
+    depends_on: "build"
+    parallelism: 3
+    commands:
+      - 'buildkite-agent artifact download "dist\*" .'
+      - 'echo Running shard %BUILDKITE_PARALLEL_JOB% of %BUILDKITE_PARALLEL_JOB_COUNT%'
+
+  - label: ":package: Package {{matrix}}"
+    key: "package"
+    depends_on: "build"
+    matrix:
+      - "x64"
+      - "arm64"
+    commands:
+      - 'echo Packaging for {{matrix}}'
+
+  - block: ":rocket: Deploy?"
+    key: "approve"
+    depends_on:
+      - "test"
+      - "package"
+    if: build.branch == "main"
+    fields:
+      - select: "Target environment"
+        key: "target-env"
+        options:
+          - label: "Staging"
+            value: "staging"
+          - label: "Production"
+            value: "production"
+
+  - label: ":rocket: Deploy"
+    key: "deploy"
+    depends_on: "approve"
+    if: build.branch == "main"
+    concurrency: 1
+    concurrency_group: "demo/deploy"
+    command: |
+      for /f %%v in ('buildkite-agent meta-data get "target-env"') do echo Deploying to %%v
