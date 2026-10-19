@@ -23,12 +23,12 @@ steps:
     steps:
       - label: "Unit test"
         commands:
-          - 'buildkite-agent artifact download "dist/*" .'
+          - 'buildkite-agent artifact download "dist\*" .'
           - 'type dist\version.txt'
           - 'echo unit tests passed'
       - label: "Integration test"
         commands:
-          - 'buildkite-agent artifact download "dist/*" .'
+          - 'buildkite-agent artifact download "dist\*" .'
           - 'type dist\commit.txt'
           - 'echo integration tests passed'
 
