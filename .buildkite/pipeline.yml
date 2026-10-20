@@ -1,44 +1,18 @@
-# .buildkite/pipeline.yml
-# Language-agnostic CI/CD example for a Windows self-hosted agent (default shell: cmd).
 agents:
   queue: "windows"
 
-env:
-  APP_NAME: "demo"
-
 steps:
-  - label: ":hammer: Build"
-    key: "build"
+  - label: "Build"
     commands:
-      - 'echo Building %APP_NAME% - build #%BUILDKITE_BUILD_NUMBER% on %BUILDKITE_AGENT_NAME%'
       - 'mkdir dist'
-      - 'echo version=1.0.%BUILDKITE_BUILD_NUMBER%> dist\version.txt'
-      - 'git rev-parse --short HEAD > dist\commit.txt'
-      - 'buildkite-agent meta-data set "app-version" "1.0.%BUILDKITE_BUILD_NUMBER%"'
+      - 'echo v1> dist\version.txt'
     artifact_paths: "dist/**/*"
 
   - wait
 
-  - group: ":test_tube: Tests"
-    steps:
-      - label: "Unit test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\version.txt'
-          - 'echo unit tests passed'
-      - label: "Integration test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\commit.txt'
-          - 'echo integration tests passed'
-
-  - wait
-
-  - block: ":rocket: Deploy to staging?"
-    key: "approve-deploy"
-    prompt: "Approve to run the deploy step"
-
-  - label: ":rocket: Deploy (simulated)"
+  - label: "Patterns"
     commands:
-      - 'buildkite-agent meta-data get "app-version"'
-      - 'echo Deploying to staging (simulated)'
+      - 'buildkite-agent artifact download "dist/*" p1 && echo RESULT-slash-OK || echo RESULT-slash-FAIL'
+      - 'buildkite-agent artifact download "dist\*" p2 && echo RESULT-backslash-OK || echo RESULT-backslash-FAIL'
+      - 'buildkite-agent artifact download "dist*" p3 && echo RESULT-prefix-OK || echo RESULT-prefix-FAIL'
+      - 'buildkite-agent artifact download "*version.txt" p4 && echo RESULT-suffix-OK || echo RESULT-suffix-FAIL'
