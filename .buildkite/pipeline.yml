@@ -1,44 +1,18 @@
-# .buildkite/pipeline.yml
-# Language-agnostic CI/CD example for a Windows self-hosted agent (default shell: cmd).
 agents:
   queue: "windows"
 
 env:
-  APP_NAME: "demo"
+  LEAK: "marker-9f3a"
 
 steps:
-  - label: ":hammer: Build"
-    key: "build"
+  - label: "Output visible in UI"
+    soft_fail: true
     commands:
-      - 'echo Building %APP_NAME% - build #%BUILDKITE_BUILD_NUMBER% on %BUILDKITE_AGENT_NAME%'
-      - 'mkdir dist'
-      - 'echo version=1.0.%BUILDKITE_BUILD_NUMBER%> dist\version.txt'
-      - 'git rev-parse --short HEAD > dist\commit.txt'
-      - 'buildkite-agent meta-data set "app-version" "1.0.%BUILDKITE_BUILD_NUMBER%"'
-    artifact_paths: "dist/**/*"
+      - 'echo leaked-%LEAK%'
+      - 'exit /b 1'
 
-  - wait
-
-  - group: ":test_tube: Tests"
-    steps:
-      - label: "Unit test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\version.txt'
-          - 'echo unit tests passed'
-      - label: "Integration test"
-        commands:
-          - 'buildkite-agent artifact download "dist\*" .'
-          - 'type dist\commit.txt'
-          - 'echo integration tests passed'
-
-  - wait
-
-  - block: ":rocket: Deploy to staging?"
-    key: "approve-deploy"
-    prompt: "Approve to run the deploy step"
-
-  - label: ":rocket: Deploy (simulated)"
+  - label: "Output redirected to file"
+    soft_fail: true
     commands:
-      - 'buildkite-agent meta-data get "app-version"'
-      - 'echo Deploying to staging (simulated)'
+      - 'mkdir logs'
+      - 'cmd /c "echo leaked-%LEAK% & exit 1" > logs\private.log 2>&1 || (buildkite-agent annotate "Build failed. Full log: %CD%\logs\private.log (host %COMPUTERNAME%)" --style error --context private-log & exit /b 1)'
