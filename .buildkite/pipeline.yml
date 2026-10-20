@@ -11,8 +11,9 @@ steps:
   - wait
 
   - label: "Patterns"
-    commands:
-      - 'buildkite-agent artifact download "dist/*" p1 && echo RESULT-slash-OK || echo RESULT-slash-FAIL'
-      - 'buildkite-agent artifact download "dist\*" p2 && echo RESULT-backslash-OK || echo RESULT-backslash-FAIL'
-      - 'buildkite-agent artifact download "dist*" p3 && echo RESULT-prefix-OK || echo RESULT-prefix-FAIL'
-      - 'buildkite-agent artifact download "*version.txt" p4 && echo RESULT-suffix-OK || echo RESULT-suffix-FAIL'
+    command: |
+      mkdir p1 p2 p3 p4
+      buildkite-agent artifact download "dist/*" p1 && echo RESULT-slash-OK || echo RESULT-slash-FAIL
+      buildkite-agent artifact download "dist\*" p2 && echo RESULT-backslash-OK || echo RESULT-backslash-FAIL
+      buildkite-agent artifact download "dist*" p3 && echo RESULT-prefix-OK || echo RESULT-prefix-FAIL
+      buildkite-agent artifact download "*version.txt" p4 && echo RESULT-suffix-OK || echo RESULT-suffix-FAIL
